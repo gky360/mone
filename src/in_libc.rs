@@ -1,8 +1,8 @@
 //! Input bandwidth from libc getifaddr function.
 
 use crate::{Error, Result};
-use libc::{c_void, if_data};
-use nix::{net::if_::InterfaceFlags, sys::socket::SockAddr};
+use libc::{c_void};
+use nix::{net::if_::InterfaceFlags, sys::socket::{SockAddr,AddressFamily}};
 use std::{collections::HashMap, ffi, ptr};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -20,10 +20,31 @@ pub struct IfData {
 }
 
 impl IfData {
-    unsafe fn from_libc_if_data(ifa_data: *mut c_void) -> Option<IfData> {
+    #[cfg(target_os = "linux")]
+    unsafe fn from_ifa_data(ifa_data: *mut c_void) -> Option<IfData> {
+        use rtnetlink::packet::{LinkStatsBuffer};
+        const LINK_STATS32_LEN: usize = 24 * 4;
+
         if ifa_data.is_null() {
             return None;
         }
+
+        let data_bytes: &[u8; LINK_STATS32_LEN] = &*(ifa_data as *const [u8; LINK_STATS32_LEN]);
+        let buf = LinkStatsBuffer::new(&data_bytes[..]);
+        Some(IfData {
+            ifi_ibytes: buf.rx_bytes(),
+            ifi_obytes: buf.tx_bytes(),
+        })
+    }
+
+    #[cfg(not(target_os = "linux"))]
+    unsafe fn from_ifa_data(ifa_data: *mut c_void) -> Option<IfData> {
+        use libc::if_data;
+
+        if ifa_data.is_null() {
+            return None;
+        }
+
         let data: if_data = *(ifa_data as *const if_data);
         Some(IfData {
             ifi_ibytes: data.ifi_ibytes,
@@ -68,7 +89,13 @@ impl InterfaceAddress {
         let ifname = unsafe { ffi::CStr::from_ptr(info.ifa_name) };
         let address = unsafe { SockAddr::from_libc_sockaddr(info.ifa_addr) };
         let netmask = unsafe { SockAddr::from_libc_sockaddr(info.ifa_netmask) };
-        let data = unsafe { IfData::from_libc_if_data(info.ifa_data) };
+        let data = match address {
+            Some(address) if address.family() == AddressFamily::Packet => unsafe {
+                IfData::from_ifa_data(info.ifa_data)
+            },
+            _ => None
+        };
+
         let mut addr = InterfaceAddress {
             interface_name: ifname.to_string_lossy().to_string(),
             flags: InterfaceFlags::from_bits_truncate(info.ifa_flags as i32),

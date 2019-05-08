@@ -1,7 +1,12 @@
+#[macro_use]
+extern crate cfg_if;
+
+use in_libc::{LibcReader, Reader};
 use std::{error, fmt, result};
 
-pub type Errno = nix::errno::Errno;
+pub mod in_libc;
 
+pub type Errno = nix::errno::Errno;
 pub type Result<T> = result::Result<T, Error>;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -29,5 +34,9 @@ impl fmt::Display for Error {
 }
 
 pub fn run() -> Result<()> {
+    let reader = LibcReader::new();
+
+    println!("{:#?}", reader.read()?);
+
     Ok(())
 }

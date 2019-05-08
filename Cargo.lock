@@ -24,6 +24,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 name = "mone"
 version = "0.1.0"
 dependencies = [
+ "cfg-if 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.54 (registry+https://github.com/rust-lang/crates.io-index)",
  "nix 0.13.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]

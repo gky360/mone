@@ -1,40 +1,33 @@
-use pnet::datalink;
-use pnet::datalink::{Channel::Ethernet, NetworkInterface};
-use std::error;
+use std::{error, fmt, result};
 
-type Error = Box<error::Error>;
+pub type Errno = nix::errno::Errno;
 
-pub fn run() -> Result<(), Error> {
-    let interface_name = "en8";
-    let interface_names_match = |iface: &NetworkInterface| iface.name == interface_name;
+pub type Result<T> = result::Result<T, Error>;
 
-    // Find the network interface with the provided name
-    let interfaces = datalink::interfaces();
-    let interface = interfaces
-        .into_iter()
-        .filter(interface_names_match)
-        .next()
-        .unwrap();
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Error {
+    Sys(Errno),
+    Other(&'static str),
+}
 
-    // Create a new channel, dealing with layer 2 packets
-    let (_, mut rx) = match datalink::channel(&interface, Default::default()) {
-        Ok(Ethernet(tx, rx)) => (tx, rx),
-        Ok(_) => panic!("Unhandled channel type"),
-        Err(e) => panic!(
-            "An error occurred when creating the datalink channel: {}",
-            e
-        ),
-    };
-
-    let mut total = 0;
-    loop {
-        match rx.next() {
-            Ok(packet) => {
-                let len = packet.len();
-                total += len;
-                println!("len: {:>10} B, total: {:>10} B", len, total);
-            }
-            Err(err) => return Err(Box::new(err)),
+impl error::Error for Error {
+    fn description(&self) -> &str {
+        match self {
+            Error::Sys(ref errno) => errno.desc(),
+            Error::Other(msg) => msg,
         }
     }
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Error::Sys(errno) => write!(f, "{:?}: {}", errno, errno.desc()),
+            Error::Other(msg) => write!(f, "{}", msg),
+        }
+    }
+}
+
+pub fn run() -> Result<()> {
+    Ok(())
 }

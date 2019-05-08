@@ -5,6 +5,4 @@ authors = ["gky360 <gky360@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-futures = "0.1.0"
-pcap = { version = "0.7", features = ["tokio"] }
-tokio-core = "0.1.0"
+pnet = "0.22.0"

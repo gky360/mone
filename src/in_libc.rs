@@ -2,7 +2,7 @@
 
 use crate::{Error, Result};
 use libc::{c_void};
-use nix::{net::if_::InterfaceFlags, sys::socket::{SockAddr,AddressFamily}};
+use nix::{net::if_::InterfaceFlags, sys::socket::{SockAddr}};
 use std::{collections::HashMap, ffi, ptr};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -89,12 +89,7 @@ impl InterfaceAddress {
         let ifname = unsafe { ffi::CStr::from_ptr(info.ifa_name) };
         let address = unsafe { SockAddr::from_libc_sockaddr(info.ifa_addr) };
         let netmask = unsafe { SockAddr::from_libc_sockaddr(info.ifa_netmask) };
-        let data = match address {
-            Some(address) if address.family() == AddressFamily::Packet => unsafe {
-                IfData::from_ifa_data(info.ifa_data)
-            },
-            _ => None
-        };
+        let data = unsafe { IfData::from_ifa_data(info.ifa_data) };
 
         let mut addr = InterfaceAddress {
             interface_name: ifname.to_string_lossy().to_string(),

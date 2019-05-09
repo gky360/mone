@@ -5,6 +5,7 @@ use in_libc::{LibcReader, Reader};
 use std::{error, fmt, result};
 
 pub mod in_libc;
+pub mod utils;
 
 pub type Errno = nix::errno::Errno;
 pub type Result<T> = result::Result<T, Error>;

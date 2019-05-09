@@ -1,14 +1,15 @@
 //! Input bandwidth from libc getifaddr function.
 
+use crate::utils::NumBytes;
 use crate::{Error, Result};
-use libc::{c_void};
-use nix::{net::if_::InterfaceFlags, sys::socket::{SockAddr}};
+use libc::c_void;
+use nix::{net::if_::InterfaceFlags, sys::socket::SockAddr};
 use std::{collections::HashMap, ffi, ptr};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct InterfaceStat {
-    rx: u64,
-    tx: u64,
+    rx: NumBytes<u64>,
+    tx: NumBytes<u64>,
 }
 
 pub type InterfaceStats = HashMap<String, InterfaceStat>;
@@ -22,7 +23,7 @@ pub struct IfData {
 impl IfData {
     #[cfg(target_os = "linux")]
     unsafe fn from_ifa_data(ifa_data: *mut c_void) -> Option<IfData> {
-        use rtnetlink::packet::{LinkStatsBuffer};
+        use rtnetlink::packet::LinkStatsBuffer;
         const LINK_STATS32_LEN: usize = 24 * 4;
 
         if ifa_data.is_null() {
@@ -176,8 +177,8 @@ impl Reader for LibcReader {
                     stats.insert(
                         addr.interface_name,
                         InterfaceStat {
-                            rx: data.ifi_ibytes as u64,
-                            tx: data.ifi_obytes as u64,
+                            rx: NumBytes::from(data.ifi_ibytes as u64),
+                            tx: NumBytes::from(data.ifi_obytes as u64),
                         },
                     );
                 }

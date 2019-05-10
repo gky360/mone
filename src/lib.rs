@@ -1,7 +1,7 @@
 #[macro_use]
 extern crate cfg_if;
 
-use reader::{in_libc::LibcReader, Reader};
+use reader::{in_libc::LibcReader, Read};
 use std::{error, fmt, result};
 
 pub mod reader;

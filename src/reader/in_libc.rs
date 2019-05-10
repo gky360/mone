@@ -1,6 +1,6 @@
 //! Input bandwidth from libc getifaddr function.
 
-use crate::reader::{InterfaceInfoItem, InterfaceStat, InterfaceStats, Reader};
+use crate::reader::{InterfaceInfoItem, InterfaceStat, InterfaceStats, Read};
 use crate::utils::NumBytes;
 use crate::{Error, Result};
 use libc::c_void;
@@ -171,7 +171,7 @@ impl LibcReader {
     }
 }
 
-impl Reader for LibcReader {
+impl Read for LibcReader {
     fn get_info(&self) -> &[InterfaceInfoItem] {
         &self.info
     }

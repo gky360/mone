@@ -137,6 +137,25 @@ impl Drop for InterfaceAddressIterator {
     }
 }
 
+impl InterfaceAddressIterator {
+    #[cfg(target_os = "linux")]
+    const TARGET_ADDRESS_FAMILY: AddressFamily = AddressFamily::Packet;
+
+    #[cfg(not(target_os = "linux"))]
+    const TARGET_ADDRESS_FAMILY: AddressFamily = AddressFamily::Link;
+
+    /// Returns false if `addr` should be ignored.
+    fn is_target(addr: &InterfaceAddress) -> bool {
+        match addr.address {
+            Some(address) => {
+                address.family() == Self::TARGET_ADDRESS_FAMILY
+                    && addr.flags.contains(InterfaceFlags::IFF_UP)
+            }
+            None => false,
+        }
+    }
+}
+
 impl Iterator for InterfaceAddressIterator {
     type Item = InterfaceAddress;
 
@@ -146,12 +165,8 @@ impl Iterator for InterfaceAddressIterator {
         while let Some(ifaddr) = unsafe { self.next.as_ref() } {
             self.next = ifaddr.ifa_next;
             let addr = InterfaceAddress::from_libc_ifaddrs(ifaddr);
-            if let Some(address) = addr.address {
-                if address.family() == AddressFamily::Link
-                    && addr.flags.contains(InterfaceFlags::IFF_UP)
-                {
-                    return Some(addr);
-                }
+            if Self::is_target(&addr) {
+                return Some(addr);
             }
         }
         None

@@ -121,9 +121,7 @@ impl fmt::Display for InterfaceStats {
 
 pub fn run() -> Result<()> {
     let reader = LibcReader::new()?;
-    let mut writer = SimpleWriter::new(io::stdout());
-
-    println!("{}", reader.get_info());
+    let mut writer = SimpleWriter::new(io::stdout(), reader.get_info())?;
 
     let stats = reader.read();
     writer.update(stats);

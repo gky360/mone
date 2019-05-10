@@ -1,6 +1,6 @@
 //! Input bandwidth from libc getifaddr function.
 
-use crate::reader::{InterfaceStat, InterfaceStats, Reader};
+use crate::reader::{InterfaceInfoItem, InterfaceStat, InterfaceStats, Reader};
 use crate::utils::NumBytes;
 use crate::{Error, Result};
 use libc::c_void;
@@ -148,30 +148,49 @@ impl Iterator for InterfaceAddressIterator {
     }
 }
 
-pub struct LibcReader;
+pub struct LibcReader {
+    info: Vec<InterfaceInfoItem>,
+}
 
 impl LibcReader {
-    pub fn new() -> LibcReader {
-        LibcReader
+    pub fn new() -> Result<LibcReader> {
+        let mut info = vec![];
+
+        for addr in getifaddrs()? {
+            match addr.data {
+                None => continue,
+                Some(_) => {
+                    info.push(InterfaceInfoItem {
+                        name: addr.interface_name,
+                    });
+                }
+            }
+        }
+
+        Ok(LibcReader { info })
     }
 }
 
 impl Reader for LibcReader {
+    fn get_info(&self) -> &[InterfaceInfoItem] {
+        &self.info
+    }
+
     fn read(&self) -> Result<InterfaceStats> {
-        let mut stats = InterfaceStats::new();
+        let mut stats = vec![None; self.get_info().len()];
 
         for addr in getifaddrs()? {
             match addr.data {
-                Some(data) => {
-                    stats.insert(
-                        addr.interface_name,
-                        InterfaceStat {
+                None => continue,
+                Some(data) => match self.index(&addr.interface_name) {
+                    None => continue,
+                    Some(i) => {
+                        stats[i] = Some(InterfaceStat {
                             rx: NumBytes::from(data.ifi_ibytes as u64),
                             tx: NumBytes::from(data.ifi_obytes as u64),
-                        },
-                    );
-                }
-                None => continue,
+                        })
+                    }
+                },
             }
         }
 

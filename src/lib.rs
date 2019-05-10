@@ -35,8 +35,9 @@ impl fmt::Display for Error {
 }
 
 pub fn run() -> Result<()> {
-    let reader = LibcReader::new();
+    let reader = LibcReader::new()?;
 
+    println!("{:#?}", reader.get_info());
     println!("{:#?}", reader.read()?);
 
     Ok(())

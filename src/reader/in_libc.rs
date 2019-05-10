@@ -1,8 +1,9 @@
 //! Input bandwidth from libc getifaddr function.
 
-use crate::reader::{InterfaceInfoItem, InterfaceStat, InterfaceStats, Read};
+use crate::reader::Read;
 use crate::utils::NumBytes;
 use crate::{Error, Result};
+use crate::{InterfaceInfoItem, InterfaceStat, InterfaceStats};
 use libc::c_void;
 use nix::{net::if_::InterfaceFlags, sys::socket::SockAddr};
 use std::{ffi, ptr};
@@ -176,10 +177,15 @@ impl Read for LibcReader {
         &self.info
     }
 
-    fn read(&self) -> Result<InterfaceStats> {
+    fn read(&self) -> InterfaceStats {
         let mut stats = vec![None; self.get_info().len()];
 
-        for addr in getifaddrs()? {
+        let addrs = match getifaddrs() {
+            Err(_) => return InterfaceStats(stats),
+            Ok(addrs) => addrs,
+        };
+
+        for addr in addrs {
             match addr.data {
                 None => continue,
                 Some(data) => match self.index(&addr.interface_name) {
@@ -194,6 +200,6 @@ impl Read for LibcReader {
             }
         }
 
-        Ok(stats)
+        InterfaceStats(stats)
     }
 }

@@ -1,5 +1,4 @@
-use crate::utils::NumBytes;
-use crate::Result;
+use crate::{InterfaceInfoItem, InterfaceStats};
 
 pub mod in_libc;
 
@@ -8,18 +7,5 @@ pub trait Read {
     fn index(&self, name: &str) -> Option<usize> {
         self.get_info().iter().position(|item| item.name == name)
     }
-    fn read(&self) -> Result<InterfaceStats>;
+    fn read(&self) -> InterfaceStats;
 }
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct InterfaceInfoItem {
-    name: String,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct InterfaceStat {
-    rx: NumBytes<u64>,
-    tx: NumBytes<u64>,
-}
-
-pub type InterfaceStats = Vec<Option<InterfaceStat>>;

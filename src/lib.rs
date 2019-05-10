@@ -1,6 +1,7 @@
 #[macro_use]
 extern crate cfg_if;
 
+use crate::utils::NumBytes;
 use reader::{in_libc::LibcReader, Read};
 use std::{error, fmt, result};
 
@@ -34,11 +35,25 @@ impl fmt::Display for Error {
     }
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub struct InterfaceInfoItem {
+    name: String,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct InterfaceStat {
+    rx: NumBytes<u64>,
+    tx: NumBytes<u64>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct InterfaceStats(Vec<Option<InterfaceStat>>);
+
 pub fn run() -> Result<()> {
     let reader = LibcReader::new()?;
 
     println!("{:#?}", reader.get_info());
-    println!("{:#?}", reader.read()?);
+    println!("{:#?}", reader.read());
 
     Ok(())
 }

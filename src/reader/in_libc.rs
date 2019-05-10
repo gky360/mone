@@ -1,18 +1,11 @@
 //! Input bandwidth from libc getifaddr function.
 
+use crate::reader::{InterfaceStat, InterfaceStats, Reader};
 use crate::utils::NumBytes;
 use crate::{Error, Result};
 use libc::c_void;
 use nix::{net::if_::InterfaceFlags, sys::socket::SockAddr};
-use std::{collections::HashMap, ffi, ptr};
-
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct InterfaceStat {
-    rx: NumBytes<u64>,
-    tx: NumBytes<u64>,
-}
-
-pub type InterfaceStats = HashMap<String, InterfaceStat>;
+use std::{ffi, ptr};
 
 #[derive(Clone, Eq, Hash, PartialEq, Debug)]
 pub struct IfData {
@@ -153,10 +146,6 @@ impl Iterator for InterfaceAddressIterator {
             None => None,
         }
     }
-}
-
-pub trait Reader {
-    fn read(&self) -> Result<InterfaceStats>;
 }
 
 pub struct LibcReader;

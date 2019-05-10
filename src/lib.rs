@@ -1,10 +1,10 @@
 #[macro_use]
 extern crate cfg_if;
 
-use in_libc::{LibcReader, Reader};
+use reader::{in_libc::LibcReader, Reader};
 use std::{error, fmt, result};
 
-pub mod in_libc;
+pub mod reader;
 pub mod utils;
 
 pub type Errno = nix::errno::Errno;

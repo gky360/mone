@@ -3,9 +3,10 @@
 use crate::reader::Read;
 use crate::utils::NumBytes;
 use crate::{Error, Result};
-use crate::{InterfaceInfoItem, InterfaceStat, InterfaceStats};
+use crate::{InterfaceInfo, InterfaceInfoItem, InterfaceStat, InterfaceStats};
 use libc::c_void;
-use nix::{net::if_::InterfaceFlags, sys::socket::SockAddr};
+use nix::net::if_::InterfaceFlags;
+use nix::sys::socket::{AddressFamily, SockAddr};
 use std::{ffi, ptr};
 
 #[derive(Clone, Eq, Hash, PartialEq, Debug)]
@@ -118,7 +119,7 @@ struct InterfaceAddressIterator {
     next: *mut libc::ifaddrs,
 }
 
-fn getifaddrs() -> Result<InterfaceAddressIterator> {
+fn get_interfaces() -> Result<InterfaceAddressIterator> {
     let mut addrs: *mut libc::ifaddrs = ptr::null_mut();
     match nix::errno::Errno::result(unsafe { libc::getifaddrs(&mut addrs) }) {
         Ok(_) => Ok(InterfaceAddressIterator {
@@ -138,49 +139,54 @@ impl Drop for InterfaceAddressIterator {
 
 impl Iterator for InterfaceAddressIterator {
     type Item = InterfaceAddress;
+
+    /// Iterates over network interfaces obtained from `getifaddrs` but filters out interfaces that
+    /// is not `AddressFamily::Link` or `InterfaceFlags::IFF_UP` .
     fn next(&mut self) -> Option<<Self as Iterator>::Item> {
-        match unsafe { self.next.as_ref() } {
-            Some(ifaddr) => {
-                self.next = ifaddr.ifa_next;
-                Some(InterfaceAddress::from_libc_ifaddrs(ifaddr))
+        while let Some(ifaddr) = unsafe { self.next.as_ref() } {
+            self.next = ifaddr.ifa_next;
+            let addr = InterfaceAddress::from_libc_ifaddrs(ifaddr);
+            if let Some(address) = addr.address {
+                if address.family() == AddressFamily::Link
+                    && addr.flags.contains(InterfaceFlags::IFF_UP)
+                {
+                    return Some(addr);
+                }
             }
-            None => None,
         }
+        None
     }
 }
 
 pub struct LibcReader {
-    info: Vec<InterfaceInfoItem>,
+    info: InterfaceInfo,
 }
 
 impl LibcReader {
     pub fn new() -> Result<LibcReader> {
         let mut info = vec![];
 
-        for addr in getifaddrs()? {
-            match addr.data {
-                None => continue,
-                Some(_) => {
-                    info.push(InterfaceInfoItem {
-                        name: addr.interface_name,
-                    });
-                }
-            }
+        for addr in get_interfaces()? {
+            info.push(InterfaceInfoItem {
+                name: addr.interface_name,
+            });
         }
 
-        Ok(LibcReader { info })
+        Ok(LibcReader {
+            info: InterfaceInfo(info),
+        })
     }
 }
 
 impl Read for LibcReader {
-    fn get_info(&self) -> &[InterfaceInfoItem] {
+    fn get_info(&self) -> &InterfaceInfo {
         &self.info
     }
 
     fn read(&self) -> InterfaceStats {
-        let mut stats = vec![None; self.get_info().len()];
+        let mut stats = vec![None; self.get_info().0.len()];
 
-        let addrs = match getifaddrs() {
+        let addrs = match get_interfaces() {
             Err(_) => return InterfaceStats(stats),
             Ok(addrs) => addrs,
         };

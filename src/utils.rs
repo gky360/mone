@@ -24,7 +24,8 @@ fn integer_len(v: f64) -> usize {
 
 impl<T: Num + ToPrimitive> NumBytes<T> {
     const UNITS: [&'static str; 9] = ["B", "KiB", "MiB", "GiB", "TiB", "Pib", "Eib", "ZiB", "YiB"];
-    const VALUE_LEN: usize = 4;
+    const VALUE_WIDTH: usize = 4;
+    pub const DISPLAY_WIDTH: usize = Self::VALUE_WIDTH + 1 + 3;
 
     pub fn pretty(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut v: f64 = self.0.to_f64().ok_or(fmt::Error)?;
@@ -38,7 +39,7 @@ impl<T: Num + ToPrimitive> NumBytes<T> {
                         v,
                         u,
                         l = l,
-                        r = Self::VALUE_LEN - l - 1
+                        r = Self::VALUE_WIDTH - l - 1
                     ),
                     // without decimal points
                     3...4 => write!(f, "{:>4} {:<3}", v.trunc(), u),

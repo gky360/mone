@@ -1,11 +1,11 @@
-use crate::{InterfaceInfoItem, InterfaceStats};
+use crate::{InterfaceInfo, InterfaceStats};
 
 pub mod in_libc;
 
 pub trait Read {
-    fn get_info(&self) -> &[InterfaceInfoItem];
+    fn get_info(&self) -> &InterfaceInfo;
     fn index(&self, name: &str) -> Option<usize> {
-        self.get_info().iter().position(|item| item.name == name)
+        self.get_info().0.iter().position(|item| item.name == name)
     }
     fn read(&self) -> InterfaceStats;
 }

@@ -1,11 +1,13 @@
 #[macro_use]
 extern crate cfg_if;
 
+use monitor::Monitor;
 use reader::{in_libc::LibcReader, Read};
 use std::{error, fmt, io, result};
 use utils::NumBytes;
-use writer::{out_simple::SimpleWriter, Write};
+use writer::out_simple::SimpleWriter;
 
+pub mod monitor;
 pub mod reader;
 pub mod utils;
 pub mod writer;
@@ -121,10 +123,8 @@ impl fmt::Display for InterfaceStats {
 
 pub fn run() -> Result<()> {
     let reader = LibcReader::new()?;
-    let mut writer = SimpleWriter::new(io::stdout(), reader.get_info())?;
+    let writer = SimpleWriter::new(io::stdout(), reader.get_info())?;
+    let mut monitor = Monitor::new(reader, writer);
 
-    let stats = reader.read();
-    writer.update(stats);
-
-    Ok(())
+    monitor.run()
 }

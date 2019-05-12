@@ -20,13 +20,15 @@ pub struct Events {
 
 #[derive(Clone, Copy, Debug)]
 pub struct Config {
-    pub tick_interval: Duration,
+    pub reader_interval: Duration,
+    pub tick_steps: u32,
 }
 
 impl Default for Config {
     fn default() -> Config {
         Config {
-            tick_interval: Duration::from_millis(1000),
+            reader_interval: Duration::from_millis(1000),
+            tick_steps: 4,
         }
     }
 }
@@ -52,17 +54,20 @@ impl Events {
             let running = Arc::clone(&running);
             let tx = mpsc::Sender::clone(&tx);
             let started_at = Instant::now();
+            let tick_interval = config.reader_interval / config.tick_steps;
             thread::spawn(move || {
                 for t in 1.. {
-                    let next_at = started_at + t * config.tick_interval;
+                    let next_at = started_at + t * tick_interval;
                     thread::sleep(next_at - Instant::now());
-                    let stats = reader.read();
                     if !running.load(Ordering::SeqCst) {
                         break;
                     }
-                    if let Err(_) = tx.send(Event::Tick(stats)) {
-                        return;
-                    };
+                    if t % config.tick_steps == 0 {
+                        let stats = reader.read();
+                        if let Err(_) = tx.send(Event::Tick(stats)) {
+                            break;
+                        };
+                    }
                 }
             })
         };

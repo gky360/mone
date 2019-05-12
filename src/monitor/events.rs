@@ -3,10 +3,13 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc;
 use std::sync::Arc;
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
+
+use crate::reader::Read;
+use crate::InterfaceStats;
 
 pub enum Event {
-    Tick(usize),
+    Tick(InterfaceStats),
 }
 
 pub struct Events {
@@ -29,11 +32,11 @@ impl Default for Config {
 }
 
 impl Events {
-    pub fn new() -> Events {
-        Events::with_config(Config::default())
+    pub fn new<R: 'static + Read + Send>(reader: R) -> Events {
+        Events::with_config(reader, Config::default())
     }
 
-    pub fn with_config(config: Config) -> Events {
+    pub fn with_config<R: 'static + Read + Send>(reader: R, config: Config) -> Events {
         let running = Arc::new(AtomicBool::new(true));
         {
             let running = Arc::clone(&running);
@@ -48,15 +51,18 @@ impl Events {
         let tick_thread = {
             let running = Arc::clone(&running);
             let tx = mpsc::Sender::clone(&tx);
+            let started_at = Instant::now();
             thread::spawn(move || {
-                for t in 0.. {
-                    if let Err(_) = tx.send(Event::Tick(t)) {
-                        return;
-                    };
+                for t in 1.. {
+                    let next_at = started_at + t * config.tick_interval;
+                    thread::sleep(next_at - Instant::now());
+                    let stats = reader.read();
                     if !running.load(Ordering::SeqCst) {
                         break;
                     }
-                    thread::sleep(config.tick_interval);
+                    if let Err(_) = tx.send(Event::Tick(stats)) {
+                        return;
+                    };
                 }
             })
         };

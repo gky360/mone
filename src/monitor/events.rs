@@ -1,4 +1,3 @@
-use ctrlc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc;
 use std::sync::Arc;
@@ -6,7 +5,8 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use crate::reader::Read;
-use crate::InterfaceStats;
+use crate::writer::Write;
+use crate::{InterfaceStats, Result};
 
 pub enum Event {
     Tick(InterfaceStats),
@@ -35,21 +35,16 @@ impl Default for Config {
 }
 
 impl Events {
-    pub fn new(reader: Box<dyn Read + Send>) -> Events {
-        Events::with_config(reader, Config::default())
+    pub fn new(reader: Box<dyn Read + Send>, writer: &mut Box<dyn Write>) -> Result<Events> {
+        Events::with_config(reader, writer, Config::default())
     }
 
-    pub fn with_config(reader: Box<dyn Read + Send>, config: Config) -> Events {
+    pub fn with_config(
+        reader: Box<dyn Read + Send>,
+        writer: &mut Box<dyn Write>,
+        config: Config,
+    ) -> Result<Events> {
         let (tx, rx) = mpsc::channel();
-        {
-            let tx = mpsc::Sender::clone(&tx);
-            ctrlc::set_handler(move || {
-                if let Err(_) = tx.send(Event::Shutdown) {
-                    return;
-                }
-            })
-            .expect("Failed to set Ctrl+C handler");
-        }
 
         let running = Arc::new(AtomicBool::new(true));
 
@@ -75,11 +70,17 @@ impl Events {
             })
         };
 
-        Events {
+        writer.setup_shutdown(Box::new(move || {
+            if let Err(_) = tx.send(Event::Shutdown) {
+                return;
+            };
+        }))?;
+
+        Ok(Events {
             running,
             rx,
             tick_thread: Some(tick_thread),
-        }
+        })
     }
 }
 

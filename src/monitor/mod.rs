@@ -20,7 +20,7 @@ impl Monitor {
     pub fn run(&mut self) -> Result<()> {
         let events = match self.reader.take() {
             None => return Err(Error::Other("Failed to initialize reader thread.")),
-            Some(reader) => events::Events::new(reader),
+            Some(reader) => events::Events::new(reader, &mut self.writer)?,
         };
 
         for event in events {

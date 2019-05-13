@@ -1,5 +1,10 @@
+use mone::Opt;
+use structopt::StructOpt;
+
 fn main() {
-    match mone::run() {
+    let opt = Opt::from_args();
+
+    match mone::run(&opt) {
         Ok(()) => (),
         Err(err) => println!("{:?}", err),
     }

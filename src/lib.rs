@@ -1,11 +1,12 @@
 #[macro_use]
 extern crate cfg_if;
 
-use monitor::Monitor;
 use std::{error, fmt, io, result};
-use utils::NumBytes;
+use structopt::{clap::arg_enum, StructOpt};
 
+use crate::monitor::Monitor;
 use crate::reader::{in_libc::LibcReader, Read};
+use crate::utils::NumBytes;
 use crate::writer::{out_simple::SimpleWriter, out_tui::TuiWriter, Write};
 
 pub mod monitor;
@@ -122,23 +123,59 @@ impl fmt::Display for InterfaceStats {
     }
 }
 
-fn get_reader() -> Result<Box<dyn Read + Send>> {
-    Ok(Box::new(LibcReader::new()?))
-}
-
-fn get_writer(reader: &Box<dyn Read + Send>) -> Result<Box<dyn Write>> {
-    if true {
-        return Ok(Box::new(SimpleWriter::new(
-            io::stdout(),
-            reader.get_info(),
-        )?));
+arg_enum! {
+    #[allow(non_camel_case_types)]
+    #[derive(PartialEq, Debug)]
+    pub enum ReaderType {
+        libc,
     }
-    Ok(Box::new(TuiWriter::new(io::stdout(), reader.get_info())?))
 }
 
-pub fn run() -> Result<()> {
-    let reader = get_reader()?;
-    let writer = get_writer(&reader)?;
+arg_enum! {
+    #[allow(non_camel_case_types)]
+    #[derive(PartialEq, Debug)]
+    pub enum WriterType {
+        tui,
+        simple,
+    }
+}
+
+static DEFAULT_READER: &str = "libc";
+static DEFAULT_WRITER: &str = "tui";
+
+#[derive(StructOpt, Debug)]
+#[structopt(name = "basic")]
+pub struct Opt {
+    /// Reader to use
+    ///
+    /// - libc: collect network interface stats using getifaddr from libc{n}
+    #[structopt(
+        short = "r",
+        long = "reader",
+        raw(possible_values = "&ReaderType::variants()"),
+        raw(default_value = "DEFAULT_READER")
+    )]
+    pub reader: ReaderType,
+    /// Writer to use
+    ///
+    /// - tui: output in TUI mode{n}- simple: output simple log to stdout{n}
+    #[structopt(
+        short = "w",
+        long = "writer",
+        raw(possible_values = "&WriterType::variants()"),
+        raw(default_value = "DEFAULT_WRITER")
+    )]
+    pub writer: WriterType,
+}
+
+pub fn run(opt: &Opt) -> Result<()> {
+    let reader: Box<dyn Read + Send> = match opt.reader {
+        ReaderType::libc => Box::new(LibcReader::new()?),
+    };
+    let writer: Box<dyn Write> = match opt.writer {
+        WriterType::tui => Box::new(TuiWriter::new(io::stdout(), reader.get_info())?),
+        WriterType::simple => Box::new(SimpleWriter::new(io::stdout(), reader.get_info())?),
+    };
 
     let mut monitor = Monitor::new(reader, writer);
 

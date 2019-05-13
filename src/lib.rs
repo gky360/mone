@@ -3,7 +3,7 @@ extern crate cfg_if;
 #[macro_use]
 extern crate failure;
 
-use std::{fmt, io, result};
+use std::{fmt, io, ops, result};
 use structopt::{clap::arg_enum, StructOpt};
 
 use crate::monitor::Monitor;
@@ -98,11 +98,25 @@ impl fmt::Display for InterfaceStat {
     }
 }
 
+impl ops::Sub for &InterfaceStat {
+    type Output = InterfaceStat;
+    fn sub(self, other: &InterfaceStat) -> Self::Output {
+        InterfaceStat {
+            rx: self.rx - other.rx,
+            tx: self.tx - other.tx,
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct InterfaceStats(Vec<Option<InterfaceStat>>);
 
 impl InterfaceStats {
     const DELIMITER: &'static str = " | ";
+
+    fn empty(len: usize) -> InterfaceStats {
+        InterfaceStats(vec![None; len])
+    }
 }
 
 impl fmt::Display for InterfaceStats {
@@ -181,7 +195,11 @@ pub fn run(opt: &Opt) -> Result<()> {
     };
     let writer: Box<dyn Write> = match opt.writer {
         WriterType::tui => Box::new(TuiWriter::new(&opt, reader.get_info())?),
-        WriterType::simple => Box::new(SimpleWriter::new(io::stdout(), reader.get_info())?),
+        WriterType::simple => Box::new(SimpleWriter::new(
+            io::stdout(),
+            reader.get_info(),
+            reader.read(),
+        )?),
     };
 
     let mut monitor = Monitor::new(reader, writer);

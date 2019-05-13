@@ -1,5 +1,5 @@
 use num::{Num, ToPrimitive};
-use std::fmt;
+use std::{fmt, ops};
 
 #[derive(Clone, Copy, Eq, PartialEq)]
 pub struct NumBytes<T: Num>(T);
@@ -7,6 +7,13 @@ pub struct NumBytes<T: Num>(T);
 impl<T: Num> From<T> for NumBytes<T> {
     fn from(val: T) -> NumBytes<T> {
         NumBytes(val)
+    }
+}
+
+impl<T: Num> ops::Sub<NumBytes<T>> for NumBytes<T> {
+    type Output = NumBytes<T>;
+    fn sub(self, other: NumBytes<T>) -> Self::Output {
+        NumBytes::<T>(self.0 - other.0)
     }
 }
 

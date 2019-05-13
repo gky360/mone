@@ -199,10 +199,10 @@ impl Read for LibcReader {
     }
 
     fn read(&self) -> InterfaceStats {
-        let mut stats = vec![None; self.get_info().0.len()];
+        let mut stats = InterfaceStats::empty(self.get_info().0.len());
 
         let addrs = match get_interfaces() {
-            Err(_) => return InterfaceStats(stats),
+            Err(_) => return stats,
             Ok(addrs) => addrs,
         };
 
@@ -212,7 +212,7 @@ impl Read for LibcReader {
                 Some(data) => match self.index(&addr.interface_name) {
                     None => continue,
                     Some(i) => {
-                        stats[i] = Some(InterfaceStat {
+                        stats.0[i] = Some(InterfaceStat {
                             rx: NumBytes::from(data.ifi_ibytes as u64),
                             tx: NumBytes::from(data.ifi_obytes as u64),
                         })
@@ -221,6 +221,6 @@ impl Read for LibcReader {
             }
         }
 
-        InterfaceStats(stats)
+        stats
     }
 }

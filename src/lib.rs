@@ -25,6 +25,8 @@ pub enum Error {
     IoError(io::Error),
     #[fail(display = "{}", _0)]
     NixError(nix::Error),
+    #[fail(display = "Exiting")]
+    Exiting,
     #[fail(display = "{}", _0)]
     Other(&'static str),
 }

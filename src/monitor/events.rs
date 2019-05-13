@@ -10,6 +10,7 @@ use crate::InterfaceStats;
 
 pub enum Event {
     Tick(InterfaceStats),
+    Shutdown,
 }
 
 pub struct Events {
@@ -39,16 +40,18 @@ impl Events {
     }
 
     pub fn with_config(reader: Box<dyn Read + Send>, config: Config) -> Events {
-        let running = Arc::new(AtomicBool::new(true));
+        let (tx, rx) = mpsc::channel();
         {
-            let running = Arc::clone(&running);
+            let tx = mpsc::Sender::clone(&tx);
             ctrlc::set_handler(move || {
-                running.store(false, Ordering::SeqCst);
+                if let Err(_) = tx.send(Event::Shutdown) {
+                    return;
+                }
             })
             .expect("Failed to set Ctrl+C handler");
         }
 
-        let (tx, rx) = mpsc::channel();
+        let running = Arc::new(AtomicBool::new(true));
 
         let tick_thread = {
             let running = Arc::clone(&running);
@@ -95,7 +98,7 @@ impl Drop for Events {
     fn drop(&mut self) {
         self.running.store(false, Ordering::SeqCst);
         if let Some(thread) = self.tick_thread.take() {
-            thread.join().unwrap();
+            thread.join().expect("Failed to shutdown tick thread");
         }
     }
 }

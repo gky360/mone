@@ -21,7 +21,8 @@ impl<T: io::Write> Write for SimpleWriter<T> {
         Ok(())
     }
 
-    fn update(&mut self, stats: InterfaceStats) {
+    fn update(&mut self, stats: InterfaceStats) -> Result<()> {
         writeln!(self.writer, "{}", stats).unwrap_or(());
+        Ok(())
     }
 }

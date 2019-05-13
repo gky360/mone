@@ -25,7 +25,7 @@ impl Monitor {
 
         for event in events {
             match event {
-                events::Event::Tick(stats) => self.writer.update(stats),
+                events::Event::Tick(stats) => self.writer.update(stats)?,
                 events::Event::Shutdown => break,
             }
         }

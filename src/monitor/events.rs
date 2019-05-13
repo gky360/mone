@@ -34,11 +34,11 @@ impl Default for Config {
 }
 
 impl Events {
-    pub fn new<R: 'static + Read + Send>(reader: R) -> Events {
+    pub fn new(reader: Box<dyn Read + Send>) -> Events {
         Events::with_config(reader, Config::default())
     }
 
-    pub fn with_config<R: 'static + Read + Send>(reader: R, config: Config) -> Events {
+    pub fn with_config(reader: Box<dyn Read + Send>, config: Config) -> Events {
         let running = Arc::new(AtomicBool::new(true));
         {
             let running = Arc::clone(&running);

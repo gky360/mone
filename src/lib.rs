@@ -2,10 +2,11 @@
 extern crate cfg_if;
 
 use monitor::Monitor;
-use reader::{in_libc::LibcReader, Read};
 use std::{error, fmt, io, result};
 use utils::NumBytes;
-use writer::out_simple::SimpleWriter;
+
+use crate::reader::{in_libc::LibcReader, Read};
+use crate::writer::{out_simple::SimpleWriter, out_tui::TuiWriter, Write};
 
 pub mod monitor;
 pub mod reader;
@@ -121,9 +122,24 @@ impl fmt::Display for InterfaceStats {
     }
 }
 
+fn get_reader() -> Result<Box<dyn Read + Send>> {
+    Ok(Box::new(LibcReader::new()?))
+}
+
+fn get_writer(reader: &Box<dyn Read + Send>) -> Result<Box<dyn Write>> {
+    if true {
+        return Ok(Box::new(SimpleWriter::new(
+            io::stdout(),
+            reader.get_info(),
+        )?));
+    }
+    Ok(Box::new(TuiWriter::new(io::stdout(), reader.get_info())?))
+}
+
 pub fn run() -> Result<()> {
-    let reader = LibcReader::new()?;
-    let writer = SimpleWriter::new(io::stdout(), reader.get_info())?;
+    let reader = get_reader()?;
+    let writer = get_writer(&reader)?;
+
     let mut monitor = Monitor::new(reader, writer);
 
     monitor.run()

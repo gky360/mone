@@ -4,13 +4,13 @@ use crate::{Error, Result};
 
 pub mod events;
 
-pub struct Monitor<R: 'static + Read + Send, W: Write> {
-    reader: Option<R>,
-    writer: W,
+pub struct Monitor {
+    reader: Option<Box<dyn Read + Send>>,
+    writer: Box<dyn Write>,
 }
 
-impl<R: 'static + Read + Send, W: Write> Monitor<R, W> {
-    pub fn new(reader: R, writer: W) -> Monitor<R, W> {
+impl Monitor {
+    pub fn new(reader: Box<dyn Read + Send>, writer: Box<dyn Write>) -> Monitor {
         Monitor {
             reader: Some(reader),
             writer,

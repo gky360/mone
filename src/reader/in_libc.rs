@@ -1,13 +1,14 @@
 //! Input bandwidth from libc getifaddr function.
 
-use crate::reader::Read;
-use crate::utils::NumBytes;
-use crate::{Error, Result};
-use crate::{InterfaceInfo, InterfaceInfoItem, InterfaceStat, InterfaceStats};
 use libc::c_void;
 use nix::net::if_::InterfaceFlags;
 use nix::sys::socket::{AddressFamily, SockAddr};
 use std::{ffi, ptr};
+
+use crate::reader::Read;
+use crate::utils::NumBytes;
+use crate::Result;
+use crate::{InterfaceInfo, InterfaceInfoItem, InterfaceStat, InterfaceStats};
 
 #[derive(Clone, Eq, Hash, PartialEq, Debug)]
 pub struct IfData {
@@ -126,8 +127,7 @@ fn get_interfaces() -> Result<InterfaceAddressIterator> {
             base: addrs,
             next: addrs,
         }),
-        Err(nix::Error::Sys(errno)) => Err(Error::Sys(errno)),
-        Err(_) => Err(Error::Other("Failed to get network interface stats")),
+        Err(err) => Err(err.into()),
     }
 }
 

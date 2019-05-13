@@ -1,6 +1,7 @@
-use crate::writer::Write;
-use crate::{Error, InterfaceInfo, InterfaceStats, Result};
 use std::io;
+
+use crate::writer::Write;
+use crate::{InterfaceInfo, InterfaceStats, Result};
 
 pub struct SimpleWriter<T: io::Write> {
     writer: T,
@@ -8,7 +9,7 @@ pub struct SimpleWriter<T: io::Write> {
 
 impl<T: io::Write> SimpleWriter<T> {
     pub fn new(mut writer: T, info: &InterfaceInfo) -> Result<SimpleWriter<T>> {
-        writeln!(writer, "{}", info).map_err(|_| Error::Other("Failed to output"))?;
+        writeln!(writer, "{}", info)?;
         Ok(SimpleWriter { writer })
     }
 }

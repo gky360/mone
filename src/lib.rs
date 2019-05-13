@@ -1,7 +1,9 @@
 #[macro_use]
 extern crate cfg_if;
+#[macro_use]
+extern crate failure;
 
-use std::{error, fmt, io, result};
+use std::{fmt, io, result};
 use structopt::{clap::arg_enum, StructOpt};
 
 use crate::monitor::Monitor;
@@ -17,27 +19,25 @@ pub mod writer;
 pub type Errno = nix::errno::Errno;
 pub type Result<T> = result::Result<T, Error>;
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Fail, Debug)]
 pub enum Error {
-    Sys(Errno),
+    #[fail(display = "{}", _0)]
+    IoError(io::Error),
+    #[fail(display = "{}", _0)]
+    NixError(nix::Error),
+    #[fail(display = "{}", _0)]
     Other(&'static str),
 }
 
-impl error::Error for Error {
-    fn description(&self) -> &str {
-        match self {
-            Error::Sys(ref errno) => errno.desc(),
-            Error::Other(msg) => msg,
-        }
+impl From<nix::Error> for Error {
+    fn from(err: nix::Error) -> Error {
+        Error::NixError(err)
     }
 }
 
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Error::Sys(errno) => write!(f, "{:?}: {}", errno, errno.desc()),
-            Error::Other(msg) => write!(f, "{}", msg),
-        }
+impl From<io::Error> for Error {
+    fn from(err: io::Error) -> Error {
+        Error::IoError(err)
     }
 }
 
@@ -156,6 +156,7 @@ pub struct Opt {
         raw(default_value = "DEFAULT_READER")
     )]
     pub reader: ReaderType,
+
     /// Writer to use
     ///
     /// - tui: output in TUI mode{n}- simple: output simple log to stdout{n}
@@ -166,6 +167,10 @@ pub struct Opt {
         raw(default_value = "DEFAULT_WRITER")
     )]
     pub writer: WriterType,
+
+    /// Number of stats history to show
+    #[structopt(short = "n", default_value = "60")]
+    pub n: usize,
 }
 
 pub fn run(opt: &Opt) -> Result<()> {

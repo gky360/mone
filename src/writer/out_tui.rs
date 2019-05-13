@@ -1,6 +1,7 @@
-use crate::writer::Write;
-use crate::{Error, InterfaceInfo, InterfaceStats, Result};
 use std::io;
+
+use crate::writer::Write;
+use crate::{InterfaceInfo, InterfaceStats, Result};
 
 pub struct TuiWriter<T: io::Write> {
     writer: T,
@@ -8,8 +9,8 @@ pub struct TuiWriter<T: io::Write> {
 
 impl<T: io::Write> TuiWriter<T> {
     pub fn new(mut writer: T, info: &InterfaceInfo) -> Result<TuiWriter<T>> {
-        writeln!(writer, "Using TUI Writer!").map_err(|_| Error::Other("Failed to output"))?;
-        writeln!(writer, "{}", info).map_err(|_| Error::Other("Failed to output"))?;
+        writeln!(writer, "Using TUI Writer!")?;
+        writeln!(writer, "{}", info)?;
         Ok(TuiWriter { writer })
     }
 }

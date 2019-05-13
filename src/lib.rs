@@ -169,7 +169,7 @@ pub struct Opt {
     pub writer: WriterType,
 
     /// Number of stats history to show
-    #[structopt(short = "n", default_value = "60")]
+    #[structopt(short = "n", default_value = "120")]
     pub n: usize,
 }
 
@@ -178,7 +178,7 @@ pub fn run(opt: &Opt) -> Result<()> {
         ReaderType::libc => Box::new(LibcReader::new()?),
     };
     let writer: Box<dyn Write> = match opt.writer {
-        WriterType::tui => Box::new(TuiWriter::new(io::stdout(), reader.get_info())?),
+        WriterType::tui => Box::new(TuiWriter::new(&opt, reader.get_info())?),
         WriterType::simple => Box::new(SimpleWriter::new(io::stdout(), reader.get_info())?),
     };
 

@@ -1,6 +1,6 @@
 # mone
 
-[![Build Status](https://travis-ci.com/gky360/mone.svg?branch=master)](https://travis-ci.com/gky360/mone)
+[![Build Status](https://travis-ci.org/gky360/mone.svg?branch=master)](https://travis-ci.org/gky360/mone)
 
 Network monitoring tool written in Rust.
 

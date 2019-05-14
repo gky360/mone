@@ -3,6 +3,17 @@ name = "mone"
 version = "0.1.0"
 authors = ["gky360 <gky360@gmail.com>"]
 edition = "2018"
+license = "MIT"
+description = """
+Network monitoring tool written in Rust.
+"""
+readme = "README.md"
+repository = "https://github.com/gky360/mone"
+categories = ["network-programming", "command-line-utilities", "visualization"]
+keywords = ["network", "monitoring", "tui", "bandwidth", "traffic"]
+
+[badges]
+travis-ci = { repository = "gky360/mone" }
 
 [dependencies]
 cfg-if = "0.1.0"

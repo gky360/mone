@@ -1,3 +1,3 @@
 # mone
 
-Network monitoring tool written in Rust
+Network monitoring tool written in Rust.

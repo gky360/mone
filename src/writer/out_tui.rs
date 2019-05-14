@@ -143,7 +143,14 @@ pub struct TuiWriter {
 impl TuiWriter {
     const Y_WINDOW: [f64; 2] = [0.0, 30.0]; // 1 B -- 1GiB in log scale
 
-    fn get_y_labels() -> [String; 4] {
+    fn get_x_labels(&self) -> Vec<String> {
+        (0..(self.n_histories + 1))
+            .step_by(60)
+            .map(|t| format!("{}", t))
+            .collect()
+    }
+
+    fn get_y_labels(&self) -> [String; 4] {
         [
             format!("{}", NumBytes::from((1024 as u64).pow(0))),
             format!("{}", NumBytes::from((1024 as u64).pow(1))),
@@ -199,7 +206,8 @@ impl TuiWriter {
                         .collect()
                 })
                 .collect();
-            let y_labels = Self::get_y_labels();
+            let x_labels = self.get_x_labels();
+            let y_labels = self.get_y_labels();
             for (l, metric) in Metric::variants().iter().enumerate() {
                 Chart::default()
                     .block(
@@ -217,7 +225,7 @@ impl TuiWriter {
                                 f64::from(self.history.current - self.n_histories as i32),
                                 f64::from(self.history.current),
                             ])
-                            .labels(&[""]),
+                            .labels(&x_labels),
                     )
                     .y_axis(
                         Axis::default()

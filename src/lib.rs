@@ -2,8 +2,6 @@
 extern crate cfg_if;
 #[macro_use]
 extern crate failure;
-#[macro_use]
-extern crate lazy_static;
 
 use std::{fmt, io, ops, result};
 use structopt::{clap::arg_enum, StructOpt};

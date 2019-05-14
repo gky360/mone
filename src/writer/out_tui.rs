@@ -115,24 +115,8 @@ impl<'a> History {
 
 type TuiBackend = TermionBackend<AlternateScreen<MouseTerminal<RawTerminal<io::Stdout>>>>;
 
-lazy_static! {
-    static ref TERMINAL: Mutex<Terminal<TuiBackend>> = {
-        let terminal = {
-            let stdout = io::stdout()
-                .into_raw_mode()
-                .expect("Failed to turn stdout into raw mode");
-            let stdout = MouseTerminal::from(stdout);
-            let stdout = AlternateScreen::from(stdout);
-            let backend = TermionBackend::new(stdout);
-            let mut terminal = Terminal::new(backend).expect("Failed to setup terminal backend");
-            terminal.hide_cursor().expect("Failed to hide cursor");
-            terminal
-        };
-        Mutex::new(terminal)
-    };
-}
-
 pub struct TuiWriter {
+    terminal: Mutex<Terminal<TuiBackend>>,
     info: InterfaceInfo,
     n_histories: usize,
     input_thread: Option<thread::JoinHandle<()>>,
@@ -167,7 +151,21 @@ impl TuiWriter {
         let history = History::empty(&info, opt.n);
         let info = info.clone();
 
+        let terminal = {
+            let stdout = io::stdout()
+                .into_raw_mode()
+                .expect("Failed to turn stdout into raw mode");
+            let stdout = MouseTerminal::from(stdout);
+            let stdout = AlternateScreen::from(stdout);
+            let backend = TermionBackend::new(stdout);
+            let mut terminal = Terminal::new(backend).expect("Failed to setup terminal backend");
+            terminal.hide_cursor().expect("Failed to hide cursor");
+            terminal
+        };
+        let terminal = Mutex::new(terminal);
+
         Ok(TuiWriter {
+            terminal,
             info,
             n_histories: opt.n,
             input_thread: None,
@@ -183,7 +181,7 @@ impl TuiWriter {
     }
 
     fn draw(&self) -> Result<()> {
-        let mut terminal = TERMINAL.lock().expect("Failed to aquire lock");
+        let mut terminal = self.terminal.lock().expect("Failed to aquire lock");
         terminal.draw(|mut f| {
             let chunks = Layout::default()
                 .direction(Direction::Vertical)

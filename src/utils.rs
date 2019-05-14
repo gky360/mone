@@ -58,6 +58,10 @@ impl<T: Num + ToPrimitive> NumBytes<T> {
         }
         Err(fmt::Error)
     }
+
+    pub fn to_f64(&self) -> Option<f64> {
+        self.0.to_f64()
+    }
 }
 
 impl<T: Num + ToPrimitive> fmt::Display for NumBytes<T> {

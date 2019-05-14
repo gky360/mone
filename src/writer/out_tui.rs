@@ -1,173 +1,236 @@
-use std::collections::VecDeque;
-use std::{io, thread};
+use slice_deque::{sdeq, SliceDeque};
+use std::collections::HashMap;
+use std::sync::Mutex;
+use std::{fmt, io, thread};
 use termion::event::Key;
 use termion::input::MouseTerminal;
 use termion::input::TermRead;
 use termion::raw::{IntoRawMode, RawTerminal};
 use termion::screen::AlternateScreen;
 use tui::backend::TermionBackend;
+use tui::layout::{Constraint, Direction, Layout};
 use tui::style::{Color, Modifier, Style};
 use tui::widgets::{Axis, Block, Borders, Chart, Dataset, Marker, Widget};
 use tui::Terminal;
 
+use crate::utils::NumBytes;
 use crate::writer::Write;
-use crate::{InterfaceInfo, InterfaceStat, InterfaceStats, Opt, Result};
+use crate::{InterfaceInfo, InterfaceStats, Opt, Result};
 
-struct StatsHistory(VecDeque<InterfaceStats>);
+#[derive(Clone, Debug, PartialEq)]
+struct MetricHistory {
+    data: Vec<SliceDeque<(f64, f64)>>,
+}
+
+impl<'a> MetricHistory {
+    fn empty(info: &'a InterfaceInfo, n_histories: usize) -> MetricHistory {
+        MetricHistory {
+            data: vec![sdeq![(0.0,0.0); n_histories]; info.0.len()],
+        }
+    }
+
+    fn get_data(&'a self, index: usize) -> &'a [(f64, f64)] {
+        &self.data[index]
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+enum Metric {
+    Rx,
+    Tx,
+}
+
+impl fmt::Display for Metric {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Metric::Rx => write!(f, "rx"),
+            Metric::Tx => write!(f, "tx"),
+        }
+    }
+}
+
+impl Metric {
+    fn variants() -> [Metric; 2] {
+        [Metric::Rx, Metric::Tx]
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+struct History {
+    current: i32,
+    data: HashMap<Metric, MetricHistory>,
+}
+
+impl<'a> History {
+    fn empty(info: &'a InterfaceInfo, n_histories: usize) -> History {
+        History {
+            current: 0,
+            data: Metric::variants()
+                .iter()
+                .map(|&metric| (metric, MetricHistory::empty(info, n_histories)))
+                .collect(),
+        }
+    }
+
+    fn get_data(&'a self, metric: Metric, index: usize) -> &'a [(f64, f64)] {
+        self.data
+            .get(&metric)
+            .expect("Could not find a metric.")
+            .get_data(index)
+    }
+
+    fn pop_front(&mut self) {
+        for (_, h) in self.data.iter_mut() {
+            for d in h.data.iter_mut() {
+                d.pop_front();
+            }
+        }
+    }
+
+    fn push_back(&mut self, diff: InterfaceStats) {
+        self.current += 1;
+        for (metric, h) in self.data.iter_mut() {
+            for (i, d) in h.data.iter_mut().enumerate() {
+                let num = match &diff.0[i] {
+                    Some(stat) => match metric {
+                        Metric::Rx => stat.rx,
+                        Metric::Tx => stat.tx,
+                    },
+                    None => 0.into(),
+                };
+                let val = match num.to_f64() {
+                    Some(val) => val.max(1.0).log2(),
+                    None => 0.0,
+                };
+                d.push_back((f64::from(self.current), val));
+            }
+        }
+    }
+
+    fn push_back_pop_front(&mut self, diff: InterfaceStats) {
+        self.pop_front();
+        self.push_back(diff);
+    }
+}
+
+type TuiBackend = TermionBackend<AlternateScreen<MouseTerminal<RawTerminal<io::Stdout>>>>;
+
+lazy_static! {
+    static ref TERMINAL: Mutex<Terminal<TuiBackend>> = {
+        let terminal = {
+            let stdout = io::stdout()
+                .into_raw_mode()
+                .expect("Failed to turn stdout into raw mode");
+            let stdout = MouseTerminal::from(stdout);
+            let stdout = AlternateScreen::from(stdout);
+            let backend = TermionBackend::new(stdout);
+            let mut terminal = Terminal::new(backend).expect("Failed to setup terminal backend");
+            terminal.hide_cursor().expect("Failed to hide cursor");
+            terminal
+        };
+        Mutex::new(terminal)
+    };
+}
 
 pub struct TuiWriter {
     info: InterfaceInfo,
     n_histories: usize,
-    terminal: Terminal<TermionBackend<AlternateScreen<MouseTerminal<RawTerminal<io::Stdout>>>>>,
     input_thread: Option<thread::JoinHandle<()>>,
-    history: StatsHistory,
-    data1: Vec<(f64, f64)>,
-    data2: Vec<(f64, f64)>,
-}
-
-#[derive(Clone)]
-pub struct SinSignal {
-    x: f64,
-    interval: f64,
-    period: f64,
-    scale: f64,
-}
-
-impl SinSignal {
-    pub fn new(interval: f64, period: f64, scale: f64) -> SinSignal {
-        SinSignal {
-            x: 0.0,
-            interval,
-            period,
-            scale,
-        }
-    }
-}
-
-impl Iterator for SinSignal {
-    type Item = (f64, f64);
-    fn next(&mut self) -> Option<Self::Item> {
-        let point = (self.x, (self.x * 1.0 / self.period).sin() * self.scale);
-        self.x += self.interval;
-        Some(point)
-    }
-}
-
-struct App {
-    signal1: SinSignal,
-    signal2: SinSignal,
-    window: [f64; 2],
+    prev_stats: InterfaceStats,
+    history: History,
 }
 
 impl TuiWriter {
-    pub fn new(opt: &Opt, info: &InterfaceInfo) -> Result<TuiWriter> {
+    const Y_WINDOW: [f64; 2] = [0.0, 30.0]; // 1 B -- 1GiB in log scale
+
+    fn get_y_labels() -> [String; 4] {
+        [
+            format!("{}", NumBytes::from((1024 as u64).pow(0))),
+            format!("{}", NumBytes::from((1024 as u64).pow(1))),
+            format!("{}", NumBytes::from((1024 as u64).pow(2))),
+            format!("{}", NumBytes::from((1024 as u64).pow(3))),
+        ]
+    }
+
+    pub fn new(
+        opt: &Opt,
+        info: &InterfaceInfo,
+        initial_stats: InterfaceStats,
+    ) -> Result<TuiWriter> {
+        let history = History::empty(&info, opt.n);
         let info = info.clone();
 
-        let terminal = {
-            let stdout = io::stdout().into_raw_mode()?;
-            let stdout = MouseTerminal::from(stdout);
-            let stdout = AlternateScreen::from(stdout);
-            let backend = TermionBackend::new(stdout);
-            let mut terminal = Terminal::new(backend)?;
-            terminal.hide_cursor()?;
-            terminal
-        };
-
-        let history = StatsHistory(
-            vec![InterfaceStats(vec![None; info.0.len()]); opt.n + 1]
-                .into_iter()
-                .collect(),
-        );
-        let mut signal1 = SinSignal::new(0.2, 3.0, 18.0);
-        let mut signal2 = SinSignal::new(0.1, 2.0, 10.0);
-        let data1 = signal1.by_ref().take(200).collect::<Vec<(f64, f64)>>();
-        let data2 = signal2.by_ref().take(200).collect::<Vec<(f64, f64)>>();
         Ok(TuiWriter {
             info,
             n_histories: opt.n,
-            terminal,
             input_thread: None,
+            prev_stats: initial_stats,
             history,
-            data1,
-            data2,
         })
     }
 
     fn update_history(&mut self, stats: InterfaceStats) {
-        self.history.0.pop_front();
-        self.history.0.push_back(stats);
+        let diff = &stats - &self.prev_stats;
+        self.prev_stats = stats;
+        self.history.push_back_pop_front(diff);
     }
 
-    fn draw(&mut self) -> Result<()> {
-        let mut signal1 = SinSignal::new(0.2, 3.0, 18.0);
-        let mut signal2 = SinSignal::new(0.1, 2.0, 10.0);
-        let app = App {
-            signal1,
-            signal2,
-            window: [0.0, 20.0],
-        };
-
-        let mut datasets: Vec<Dataset>;
-        for stat_name in ["rx", "tx"].iter() {
-            for i in 0..self.info.0.len() {
-                for t in 0..self.n_histories {}
+    fn draw(&self) -> Result<()> {
+        let mut terminal = TERMINAL.lock().expect("Failed to aquire lock");
+        terminal.draw(|mut f| {
+            let chunks = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
+                .split(f.size());
+            let datasets: Vec<Vec<Dataset>> = Metric::variants()
+                .iter()
+                .map(|&metric| {
+                    self.info
+                        .0
+                        .iter()
+                        .enumerate()
+                        .map(|(i, item)| {
+                            Dataset::default()
+                                .name(&item.name)
+                                .marker(Marker::Dot)
+                                .style(Style::default().fg(Color::Cyan))
+                                .data(self.history.get_data(metric, i))
+                        })
+                        .collect()
+                })
+                .collect();
+            let y_labels = Self::get_y_labels();
+            for (l, metric) in Metric::variants().iter().enumerate() {
+                Chart::default()
+                    .block(
+                        Block::default()
+                            .title(&format!("{}", metric))
+                            .title_style(Style::default().fg(Color::Cyan).modifier(Modifier::BOLD))
+                            .borders(Borders::ALL),
+                    )
+                    .x_axis(
+                        Axis::default()
+                            .title("time")
+                            .style(Style::default().fg(Color::Gray))
+                            .labels_style(Style::default().modifier(Modifier::ITALIC))
+                            .bounds([
+                                f64::from(self.history.current - self.n_histories as i32),
+                                f64::from(self.history.current),
+                            ])
+                            .labels(&[""]),
+                    )
+                    .y_axis(
+                        Axis::default()
+                            .title("Bytes/s")
+                            .style(Style::default().fg(Color::Gray))
+                            .labels_style(Style::default().modifier(Modifier::ITALIC))
+                            .bounds(Self::Y_WINDOW)
+                            .labels(&y_labels),
+                    )
+                    .datasets(&datasets[l])
+                    .render(&mut f, chunks[l]);
             }
-        }
-
-        let i = 0;
-        let stat_name = "rx";
-        let data = self.history.0.iter().map(|stats| {
-            // let stat = stats.0[i];
-            // let val = match stat {};
-            (0.0, 0.0)
-        });
-
-        let datasets = vec![
-            Dataset::default()
-                .name("data2")
-                .marker(Marker::Dot)
-                .style(Style::default().fg(Color::Cyan))
-                .data(&self.data1),
-            Dataset::default()
-                .name("data3")
-                .marker(Marker::Braille)
-                .style(Style::default().fg(Color::Yellow))
-                .data(&self.data2),
-        ];
-
-        self.terminal.draw(|mut f| {
-            let size = f.size();
-            Chart::default()
-                .block(
-                    Block::default()
-                        .title("Chart")
-                        .title_style(Style::default().fg(Color::Cyan).modifier(Modifier::BOLD))
-                        .borders(Borders::ALL),
-                )
-                .x_axis(
-                    Axis::default()
-                        .title("X Axis")
-                        .style(Style::default().fg(Color::Gray))
-                        .labels_style(Style::default().modifier(Modifier::ITALIC))
-                        .bounds(app.window)
-                        .labels(&[
-                            &format!("{}", app.window[0]),
-                            &format!("{}", (app.window[0] + app.window[1]) / 2.0),
-                            &format!("{}", app.window[1]),
-                        ]),
-                )
-                .y_axis(
-                    Axis::default()
-                        .title("Y Axis")
-                        .style(Style::default().fg(Color::Gray))
-                        .labels_style(Style::default().modifier(Modifier::ITALIC))
-                        .bounds([-20.0, 20.0])
-                        .labels(&["-20", "0", "20"]),
-                )
-                .datasets(&datasets)
-                .render(&mut f, size);
         })?;
-
         Ok(())
     }
 }

@@ -30,23 +30,9 @@ impl<T: io::Write> Write for SimpleWriter<T> {
     }
 
     fn update(&mut self, stats: InterfaceStats) -> Result<()> {
-        let diff = InterfaceStats(
-            stats
-                .0
-                .iter()
-                .enumerate()
-                .map(|(i, stat)| {
-                    if let Some(stat) = stat {
-                        if let Some(prev_stat) = &self.prev_stats.0[i] {
-                            return Some(stat - prev_stat);
-                        }
-                    }
-                    None
-                })
-                .collect(),
-        );
-        writeln!(self.writer, "{}", diff).unwrap_or(());
+        let diff = &stats - &self.prev_stats;
         self.prev_stats = stats;
+        writeln!(self.writer, "{}", diff).unwrap_or(());
         Ok(())
     }
 }

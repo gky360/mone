@@ -2,6 +2,8 @@
 extern crate cfg_if;
 #[macro_use]
 extern crate failure;
+#[macro_use]
+extern crate lazy_static;
 
 use std::{fmt, io, ops, result};
 use structopt::{clap::arg_enum, StructOpt};
@@ -119,6 +121,27 @@ impl InterfaceStats {
     }
 }
 
+impl ops::Sub for &InterfaceStats {
+    type Output = InterfaceStats;
+    fn sub(self, other: &InterfaceStats) -> Self::Output {
+        assert_eq!(self.0.len(), other.0.len());
+        InterfaceStats(
+            self.0
+                .iter()
+                .enumerate()
+                .map(|(i, stat)| {
+                    if let Some(stat) = stat {
+                        if let Some(other_stat) = &other.0[i] {
+                            return Some(stat - other_stat);
+                        }
+                    }
+                    None
+                })
+                .collect(),
+        )
+    }
+}
+
 impl fmt::Display for InterfaceStats {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let len = self.0.len();
@@ -185,7 +208,7 @@ pub struct Opt {
     pub writer: WriterType,
 
     /// Number of stats history to show
-    #[structopt(short = "n", default_value = "120")]
+    #[structopt(short = "n", default_value = "180")]
     pub n: usize,
 }
 
@@ -194,7 +217,7 @@ pub fn run(opt: &Opt) -> Result<()> {
         ReaderType::libc => Box::new(LibcReader::new()?),
     };
     let writer: Box<dyn Write> = match opt.writer {
-        WriterType::tui => Box::new(TuiWriter::new(&opt, reader.get_info())?),
+        WriterType::tui => Box::new(TuiWriter::new(&opt, reader.get_info(), reader.read())?),
         WriterType::simple => Box::new(SimpleWriter::new(
             io::stdout(),
             reader.get_info(),

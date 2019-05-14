@@ -126,6 +126,15 @@ pub struct TuiWriter {
 
 impl TuiWriter {
     const Y_WINDOW: [f64; 2] = [0.0, 30.0]; // 1 B -- 1GiB in log scale
+    const COLORS: [Color; 7] = [
+        Color::Red,
+        Color::Green,
+        Color::Yellow,
+        Color::Blue,
+        Color::Magenta,
+        Color::Cyan,
+        Color::Gray,
+    ];
 
     fn get_x_labels(&self) -> Vec<String> {
         (0..(self.n_histories + 1))
@@ -197,8 +206,8 @@ impl TuiWriter {
                         .map(|(i, item)| {
                             Dataset::default()
                                 .name(&item.name)
-                                .marker(Marker::Dot)
-                                .style(Style::default().fg(Color::Cyan))
+                                .marker(Marker::Braille)
+                                .style(Style::default().fg(Self::COLORS[i % Self::COLORS.len()]))
                                 .data(self.history.get_data(metric, i))
                         })
                         .collect()

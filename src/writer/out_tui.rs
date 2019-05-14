@@ -125,7 +125,7 @@ pub struct TuiWriter {
 }
 
 impl TuiWriter {
-    const Y_WINDOW: [f64; 2] = [0.0, 30.0]; // 1 B -- 1GiB in log scale
+    const Y_WINDOW: [f64; 2] = [10.0, 30.0]; // 1 KiB -- 1GiB in log scale
     const COLORS: [Color; 7] = [
         Color::Red,
         Color::Green,
@@ -143,9 +143,8 @@ impl TuiWriter {
             .collect()
     }
 
-    fn get_y_labels(&self) -> [String; 4] {
+    fn get_y_labels(&self) -> [String; 3] {
         [
-            format!("{}", NumBytes::from((1024 as u64).pow(0))),
             format!("{}", NumBytes::from((1024 as u64).pow(1))),
             format!("{}", NumBytes::from((1024 as u64).pow(2))),
             format!("{}", NumBytes::from((1024 as u64).pow(3))),
@@ -206,7 +205,7 @@ impl TuiWriter {
                         .map(|(i, item)| {
                             Dataset::default()
                                 .name(&item.name)
-                                .marker(Marker::Braille)
+                                .marker(Marker::Dot)
                                 .style(Style::default().fg(Self::COLORS[i % Self::COLORS.len()]))
                                 .data(self.history.get_data(metric, i))
                         })
@@ -225,7 +224,7 @@ impl TuiWriter {
                     )
                     .x_axis(
                         Axis::default()
-                            .title("time")
+                            .title("")
                             .style(Style::default().fg(Color::Gray))
                             .labels_style(Style::default().modifier(Modifier::ITALIC))
                             .bounds([

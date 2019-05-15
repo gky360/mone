@@ -19,19 +19,20 @@ pub struct IfData {
 impl IfData {
     #[cfg(target_os = "linux")]
     unsafe fn from_ifa_data(ifa_data: *mut c_void) -> Option<IfData> {
-        use rtnetlink::packet::LinkStatsBuffer;
-        const LINK_STATS32_LEN: usize = 24 * 4;
+        use super::link::{LinkStats, LINK_STATS32_LEN};
 
         if ifa_data.is_null() {
             return None;
         }
 
         let data_bytes: &[u8; LINK_STATS32_LEN] = &*(ifa_data as *const [u8; LINK_STATS32_LEN]);
-        let buf = LinkStatsBuffer::new(&data_bytes[..]);
-        Some(IfData {
-            ifi_ibytes: buf.rx_bytes(),
-            ifi_obytes: buf.tx_bytes(),
-        })
+        match LinkStats::from_bytes(data_bytes) {
+            Err(_) => None,
+            Ok(link_stats) => Some(IfData {
+                ifi_ibytes: link_stats.rx_bytes,
+                ifi_obytes: link_stats.tx_bytes,
+            }),
+        }
     }
 
     #[cfg(not(target_os = "linux"))]

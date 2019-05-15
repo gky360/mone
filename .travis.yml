@@ -10,14 +10,14 @@ env:
 matrix:
   include:
     # Linux
-    - env: TARGET=x86_64-unknown-linux-gnu
+    - env: TARGET=x86_64-unknown-linux-musl
 
     # OSX
     - env: TARGET=x86_64-apple-darwin
       os: osx
 
     # Testing other channels
-    - env: TARGET=x86_64-unknown-linux-gnu
+    - env: TARGET=x86_64-unknown-linux-musl
       rust: nightly
     - env: TARGET=x86_64-apple-darwin
       os: osx
@@ -68,3 +68,4 @@ branches:
     # release tags
     - /^v\d+\.\d+\.\d+.*$/
     - master
+    - develop

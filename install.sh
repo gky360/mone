@@ -130,7 +130,7 @@ fi
 chmod +x "$DOWNLOAD_DIR/$INSTALL_NAME"
 
 echo "Moving executable to $INSTALL_DIRECTORY/$INSTALL_NAME ..."
-mv "$DOWNLOAD_DIR/$INSTALL_NAME" "$INSTALL_DIRECTORY/$INSTALL_NAME"
+mv -i "$DOWNLOAD_DIR/$INSTALL_NAME" "$INSTALL_DIRECTORY/$INSTALL_NAME"
 
 # clean up temp dir
 echo "Cleaning up temp directory ..."

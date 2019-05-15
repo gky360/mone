@@ -225,3 +225,16 @@ impl Read for LibcReader {
         stats
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_libc_reader_new() {
+        match LibcReader::new() {
+            Err(err) => assert!(false, "`LibcReader::new()` returned an error: {}", err),
+            Ok(_) => assert!(true),
+        }
+    }
+}

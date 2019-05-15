@@ -11,7 +11,7 @@ readme = "README.md"
 repository = "https://github.com/gky360/mone"
 categories = ["network-programming", "command-line-utilities", "visualization"]
 keywords = ["network", "monitoring", "tui", "bandwidth", "traffic"]
-exclude = ["assets/*", ".travis.yml", ".vscode/*"]
+exclude = ["assets/*", "ci/*", ".travis.yml", ".vscode/*"]
 
 [badges]
 travis-ci = { repository = "gky360/mone" }

@@ -86,7 +86,7 @@ initOSAndVendor() {
     fi
     case "$OS" in
         darwin) OS='darwin'; VENDOR='apple';;
-        linux) OS='linux-gnu'; VENDOR='unknown';;
+        linux) OS='linux-musl'; VENDOR='unknown';;
         *) echo "OS ${OS} is not supported by this installation script"; exit 1;;
     esac
     echo "OS = $OS"

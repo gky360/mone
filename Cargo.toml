@@ -29,4 +29,4 @@ termion = "1.5.2"
 tui = "0.5.1"
 
 [target.'cfg(target_os = "linux")'.dependencies]
-rtnetlink = { git = "https://github.com/little-dude/netlink", rev = "2ac0e7d01c" }
+byteorder = "1.3.1"

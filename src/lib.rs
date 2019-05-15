@@ -162,7 +162,7 @@ impl fmt::Display for InterfaceStats {
 
 arg_enum! {
     #[allow(non_camel_case_types)]
-    #[derive(PartialEq, Debug)]
+    #[derive(Clone, Copy, PartialEq, Debug)]
     pub enum ReaderType {
         libc,
     }
@@ -170,15 +170,16 @@ arg_enum! {
 
 arg_enum! {
     #[allow(non_camel_case_types)]
-    #[derive(PartialEq, Debug)]
+    #[derive(Clone, Copy, PartialEq, Debug)]
     pub enum WriterType {
         tui,
         simple,
     }
 }
 
-static DEFAULT_READER: &str = "libc";
-static DEFAULT_WRITER: &str = "tui";
+pub static DEFAULT_READER: &str = "libc";
+pub static DEFAULT_WRITER: &str = "tui";
+pub static DEFAULT_N: usize = 180;
 
 #[derive(StructOpt, Debug)]
 #[structopt()]
@@ -206,7 +207,7 @@ pub struct Opt {
     pub writer: WriterType,
 
     /// Number of stats history to show
-    #[structopt(short = "n", default_value = "180")]
+    #[structopt(short = "n", default_value = "DEFAULT_N")]
     pub n: usize,
 }
 

@@ -1,11 +1,17 @@
-use mone::Opt;
+use std::process;
 use structopt::StructOpt;
 
 fn main() {
-    let opt = Opt::from_args();
+    let result = {
+        let opt = mone::Opt::from_args();
+        mone::run(&opt)
+    };
 
-    match mone::run(&opt) {
-        Ok(()) => (),
-        Err(err) => println!("{:?}", err),
-    }
+    process::exit(match result {
+        Ok(()) => 0,
+        Err(err) => {
+            eprintln!("{:?}", err);
+            1
+        }
+    })
 }

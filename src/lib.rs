@@ -181,7 +181,7 @@ static DEFAULT_READER: &str = "libc";
 static DEFAULT_WRITER: &str = "tui";
 
 #[derive(StructOpt, Debug)]
-#[structopt(name = "basic")]
+#[structopt()]
 pub struct Opt {
     /// Reader to use
     ///

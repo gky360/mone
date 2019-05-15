@@ -224,7 +224,6 @@ pub fn run(opt: &Opt) -> Result<()> {
     };
 
     let mut monitor = Monitor::new(reader, writer);
-
     monitor.run()
 }
 

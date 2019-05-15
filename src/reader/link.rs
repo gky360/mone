@@ -1,3 +1,6 @@
+// This module is inspired from
+// [netlink-packet](https://docs.rs/crate/netlink-packet/0.1.1/source/src/rtnl/link/nlas/mod.rs)
+
 use byteorder::{ByteOrder, NativeEndian};
 
 use crate::{Error, Result};
@@ -92,40 +95,5 @@ impl LinkStats<u32> {
             tx_compressed: NativeEndian::read_u32(&buf[88..92]),
             rx_nohandler: NativeEndian::read_u32(&buf[92..96]),
         })
-    }
-
-    fn to_bytes(&self, buf: &mut [u8]) -> Result<()> {
-        if buf.len() < LINK_STATS32_LEN {
-            return Err(Error::LinkStatsError(format!(
-                "buffer is only {} long, but IFLA_STATS is {} bytes",
-                buf.len(),
-                LINK_STATS32_LEN
-            )));
-        }
-        NativeEndian::write_u32(&mut buf[0..4], self.rx_packets);
-        NativeEndian::write_u32(&mut buf[4..8], self.tx_packets);
-        NativeEndian::write_u32(&mut buf[8..12], self.rx_bytes);
-        NativeEndian::write_u32(&mut buf[12..16], self.tx_bytes);
-        NativeEndian::write_u32(&mut buf[12..20], self.rx_errors);
-        NativeEndian::write_u32(&mut buf[20..24], self.tx_errors);
-        NativeEndian::write_u32(&mut buf[24..28], self.rx_dropped);
-        NativeEndian::write_u32(&mut buf[28..32], self.tx_dropped);
-        NativeEndian::write_u32(&mut buf[32..36], self.multicast);
-        NativeEndian::write_u32(&mut buf[36..40], self.collisions);
-        NativeEndian::write_u32(&mut buf[40..44], self.rx_length_errors);
-        NativeEndian::write_u32(&mut buf[44..48], self.rx_over_errors);
-        NativeEndian::write_u32(&mut buf[48..52], self.rx_crc_errors);
-        NativeEndian::write_u32(&mut buf[52..56], self.rx_frame_errors);
-        NativeEndian::write_u32(&mut buf[56..60], self.rx_fifo_errors);
-        NativeEndian::write_u32(&mut buf[60..64], self.rx_missed_errors);
-        NativeEndian::write_u32(&mut buf[64..68], self.tx_aborted_errors);
-        NativeEndian::write_u32(&mut buf[68..72], self.tx_carrier_errors);
-        NativeEndian::write_u32(&mut buf[72..76], self.tx_fifo_errors);
-        NativeEndian::write_u32(&mut buf[76..80], self.tx_heartbeat_errors);
-        NativeEndian::write_u32(&mut buf[80..84], self.tx_window_errors);
-        NativeEndian::write_u32(&mut buf[84..88], self.rx_compressed);
-        NativeEndian::write_u32(&mut buf[88..92], self.tx_compressed);
-        NativeEndian::write_u32(&mut buf[92..96], self.rx_nohandler);
-        Ok(())
     }
 }

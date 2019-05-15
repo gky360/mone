@@ -177,11 +177,10 @@ arg_enum! {
     }
 }
 
-pub static DEFAULT_READER: &str = "libc";
-pub static DEFAULT_WRITER: &str = "tui";
-pub static DEFAULT_N: usize = 180;
+static DEFAULT_READER: &str = "libc";
+static DEFAULT_WRITER: &str = "tui";
 
-#[derive(StructOpt, Debug)]
+#[derive(StructOpt, Debug, PartialEq)]
 #[structopt()]
 pub struct Opt {
     /// Reader to use
@@ -207,7 +206,7 @@ pub struct Opt {
     pub writer: WriterType,
 
     /// Number of stats history to show
-    #[structopt(short = "n", default_value = "DEFAULT_N")]
+    #[structopt(short = "n", default_value = "180")]
     pub n: usize,
 }
 
@@ -227,4 +226,20 @@ pub fn run(opt: &Opt) -> Result<()> {
     let mut monitor = Monitor::new(reader, writer);
 
     monitor.run()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_opt() {
+        let opt = Opt::from_args();
+        let expected = Opt {
+            reader: ReaderType::libc,
+            writer: WriterType::tui,
+            n: 180,
+        };
+        assert_eq!(opt, expected);
+    }
 }
